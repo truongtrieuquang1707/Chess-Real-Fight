@@ -20,8 +20,6 @@ Game cờ vua 3D chạy trên trình duyệt. Quân cờ là các nhân vật tr
 Trước khi lao vào trận, nhân vật gầm chiến và giơ cao vũ khí. Đúng lúc trúng đòn, thời gian chậm lại và đối thủ
 bị hất văng rồi ngã xuống. Vua bị chiếu hết thì ngã xuống, quân bên thắng ăn mừng.
 
-Khi Vua bị chiếu hết, Vua ngã xuống và quân bên thắng nhảy lên ăn mừng.
-
 ## Tính năng
 
 - Chơi với máy (Stockfish, Elo 250–3200; không có mạng thì dùng engine dự phòng) hoặc hai người.
