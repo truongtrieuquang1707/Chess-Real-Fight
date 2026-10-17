@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Cờ Vua Chiến Binh</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="stage"></div>
+
+<aside class="hud" id="hud">
+  <header class="hud-head">
+    <h1>⚔ Cờ Vua Chiến Binh</h1>
+    <button class="btn icon" id="btnPanel" title="Thu gọn / mở bảng">▾</button>
+  </header>
+  <div class="hud-body">
+    <div class="status" id="status"></div>
+    <div class="side-row"><span class="who" id="who1"></span><span class="caps" id="cap1"></span></div>
+    <div class="side-row"><span class="who" id="who0"></span><span class="caps" id="cap0"></span></div>
+    <div class="moves" id="moves"></div>
+    <div class="btns">
+      <button class="btn" id="btnNew">Ván mới</button>
+      <button class="btn" id="btnUndo">Đi lại</button>
+      <button class="btn" id="btnResign">Đầu hàng</button>
+    </div>
+    <div class="btns small">
+      <button class="btn" id="btnView" title="Đổi góc nhìn sang phía bên kia">🔄 Góc nhìn</button>
+      <button class="btn" id="btnCam" title="Camera tự áp sát mỗi trận đánh">🎥 Cận cảnh</button>
+      <button class="btn" id="btnSpeed" title="Tốc độ hoạt ảnh">⏩ 1x</button>
+      <button class="btn icon" id="btnSound" title="Âm thanh">🔊</button>
+      <button class="btn icon" id="btnMusic" title="Nhạc nền">🎵</button>
+    </div>
+    <p class="hint">Kéo để xoay bàn cờ · lăn chuột / chụm 2 ngón để phóng to · <span id="engineTag"></span></p>
+  </div>
+</aside>
+
+<div class="banner" id="banner" hidden></div>
+<div class="promo" id="promo" hidden></div>
+
+<dialog id="dlgNew">
+  <form method="dialog">
+    <h2>Ván mới</h2>
+    <div class="field">
+      <label>Đối thủ</label>
+      <div class="seg" data-name="opp">
+        <button type="button" data-v="ai">Máy</button>
+        <button type="button" data-v="human">Hai người</button>
+      </div>
+    </div>
+    <div class="field" id="fieldSide">
+      <label>Bạn cầm quân</label>
+      <div class="seg" data-name="side">
+        <button type="button" data-v="0">Trắng</button>
+        <button type="button" data-v="1">Đen</button>
+        <button type="button" data-v="r">Ngẫu nhiên</button>
+      </div>
+    </div>
+    <div class="field" id="fieldElo">
+      <label>Elo của máy: <b id="eloValue"></b></label>
+      <input type="range" id="eloRange" min="250" max="3200" step="50" value="1000">
+    </div>
+    <div class="dlg-actions">
+      <button class="btn" value="cancel">Hủy</button>
+      <button class="btn primary" value="ok">Xuất trận!</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="js/three.min.js"></script>
+<script src="js/chess.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/music.js"></script>
+<script src="js/characters.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
