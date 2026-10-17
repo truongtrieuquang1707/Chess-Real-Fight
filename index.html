@@ -9,6 +9,7 @@
 <body>
 <div id="stage"></div>
 
+<div class="rightcol">
 <aside class="hud" id="hud">
   <header class="hud-head">
     <h1>⚔ Cờ Vua Chiến Binh</h1>
@@ -34,6 +35,19 @@
     <p class="hint">Kéo để xoay bàn cờ · lăn chuột / chụm 2 ngón để phóng to · <span id="engineTag"></span></p>
   </div>
 </aside>
+
+<section class="mini" id="mini">
+  <div class="mini-head">
+    <b>Bàn cờ 2D</b>
+    <button class="btn icon" id="miniSmaller" title="Thu nhỏ">−</button>
+    <button class="btn icon" id="miniBigger" title="Phóng to">+</button>
+    <button class="btn icon" id="miniFlip" title="Xoay bàn">⇅</button>
+    <button class="btn icon" id="miniToggle" title="Ẩn / hiện">▾</button>
+  </div>
+  <div class="mini-board" id="miniBoard"></div>
+  <div class="mini-resize" id="miniResize" title="Kéo để đổi kích thước"></div>
+</section>
+</div>
 
 <div class="banner" id="banner" hidden></div>
 <div class="promo" id="promo" hidden></div>

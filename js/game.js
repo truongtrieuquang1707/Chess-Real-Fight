@@ -8,7 +8,7 @@
   var GLYPH = ['', '♟', '♞', '♝', '♜', '♛', '♚'];
 
   // ---------- trạng thái ----------
-  var prefs = { opp: 'ai', side: '0', elo: 1000, cam: true, speed: 1 };
+  var prefs = { opp: 'ai', side: '0', elo: 1000, cam: true, speed: 1, mini: 240, miniOpen: true };
   try { var sv = JSON.parse(localStorage.getItem('rf.prefs')); if (sv) for (var k in prefs) if (k in sv) prefs[k] = sv[k]; } catch (e) { /* mặc định */ }
   function savePrefs() { try { localStorage.setItem('rf.prefs', JSON.stringify(prefs)); } catch (e) { /* bỏ qua */ } }
   var S = { game: new Game(), hist: [], keys: {}, actors: {}, sel: -1, targets: [], busy: false, over: null,
@@ -25,12 +25,12 @@
   renderer.toneMappingExposure = 1.15;
   wrap.appendChild(renderer.domElement);
   var scene = new T3.Scene();
-  scene.background = new T3.Color(0x1a2131).convertSRGBToLinear();
-  scene.fog = new T3.Fog(scene.background.getHex(), 20, 46);
+  scene.background = new T3.Color(0x120f14).convertSRGBToLinear();
+  scene.fog = new T3.Fog(scene.background.getHex(), 14, 36);
   // bản đồ môi trường cho kim loại phản chiếu: bầu trời chiều chuyển màu + vài mảng sáng
   (function () {
     var env = new T3.Scene(), n = 32, geoS = new T3.SphereGeometry(10, n, n / 2), cols = [];
-    var top = new T3.Color(0x9bb4e8), mid = new T3.Color(0xf3d2a2), bot = new T3.Color(0x3a2c22), pos = geoS.attributes.position;
+    var top = new T3.Color(0x5a6a94), mid = new T3.Color(0xe0905a), bot = new T3.Color(0x241a14), pos = geoS.attributes.position;
     for (var i = 0; i < pos.count; i++) {
       var y = pos.getY(i) / 10, cc = y > 0 ? mid.clone().lerp(top, Math.pow(y, 0.6)) : mid.clone().lerp(bot, Math.pow(-y, 0.4));
       cols.push(cc.r, cc.g, cc.b);
@@ -46,8 +46,8 @@
   })();
   var camera = new T3.PerspectiveCamera(42, 1, 0.1, 120);
 
-  scene.add(new T3.HemisphereLight(0xbcd0ff, 0x3b2c1e, 0.6));
-  var sun = new T3.DirectionalLight(0xffe0b5, 2.4);
+  scene.add(new T3.HemisphereLight(0x8a9cc8, 0x2a1a10, 0.45));
+  var sun = new T3.DirectionalLight(0xffc890, 2.1);
   sun.position.set(6, 13, 5);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
@@ -55,27 +55,27 @@
   sc.left = -8; sc.right = 8; sc.top = 8; sc.bottom = -8; sc.near = 1; sc.far = 40;
   sun.shadow.bias = -0.0006;
   scene.add(sun);
-  var moon = new T3.DirectionalLight(0x6f86c9, 0.6);
-  moon.position.set(-8, 6, -6);
+  var moon = new T3.DirectionalLight(0xff5a2a, 1.4); // ánh lửa đỏ hắt ngược tạo viền cho nhân vật
+  moon.position.set(-4, 3, -10);
   scene.add(moon);
 
   var mat = Ch.mat, G = Ch.G, mesh = Ch.mesh, group = Ch.group;
   // mặt đất và bàn cờ
-  var ground = mesh(new T3.CircleGeometry(40, 48), mat(0x2c3a22, { rough: 1 }), scene, 0, -0.62, 0);
+  var ground = mesh(new T3.CircleGeometry(40, 48), mat(0x1d1a16, { rough: 1 }), scene, 0, -0.62, 0);
   ground.rotation.x = -Math.PI / 2;
   ground.castShadow = false;
-  var dirt = mesh(new T3.CircleGeometry(8.5, 40), mat(0x4a3c2a, { rough: 1 }), scene, 0, -0.6, 0);
+  var dirt = mesh(new T3.CircleGeometry(8.5, 40), mat(0x2f241b, { rough: 1 }), scene, 0, -0.6, 0);
   dirt.rotation.x = -Math.PI / 2;
   dirt.castShadow = false;
-  mesh(G.box(10.2, 0.5, 10.2), mat(0x51463c, { rough: 0.9 }), scene, 0, -0.4, 0);
-  mesh(G.box(9.3, 0.18, 9.3), mat(0x5a3a22, { rough: 0.8 }), scene, 0, -0.1, 0);
+  mesh(G.box(10.2, 0.5, 10.2), mat(0x2e2a27, { rough: 0.9 }), scene, 0, -0.4, 0);
+  mesh(G.box(9.3, 0.18, 9.3), mat(0x2a1b10, { rough: 0.7 }), scene, 0, -0.1, 0);
   [[0, 4.62, 9.4, 0.07], [0, -4.62, 9.4, 0.07], [4.62, 0, 0.07, 9.4], [-4.62, 0, 0.07, 9.4]].forEach(function (b) {
     mesh(G.box(b[2], 0.05, b[3]), mat(0xd4a93c, { metal: 0.7, rough: 0.35 }), scene, b[0], 0.0, b[1]);
   });
   var squares = [];
   for (var sq = 0; sq < 64; sq++) {
     var light = ((sq >> 3) + (sq & 7)) % 2 === 0, v = (Math.random() - 0.5) * 0.06;
-    var col = new T3.Color(light ? 0xb9a684 : 0x4c3c2e).offsetHSL(0, 0, v).convertSRGBToLinear();
+    var col = new T3.Color(light ? 0x7d7466 : 0x221d1a).offsetHSL(0, 0, v).convertSRGBToLinear();
     var m = new T3.MeshStandardMaterial({ color: col, roughness: light ? 0.5 : 0.6 });
     m.envMapIntensity = 0.5;
     var s = mesh(G.box(0.98, 0.12, 0.98), m, scene, (sq & 7) - 3.5, -0.06, (sq >> 3) - 3.5);
@@ -125,6 +125,26 @@
     torch.add(pl);
     flames.push({ fire: fire, light: pl, flag: fl, ph: Math.random() * 10 });
   });
+
+  // tàn lửa bay lên trên chiến trường
+  var embers = (function () {
+    var n = 140, g = new T3.BufferGeometry(), a = new Float32Array(n * 3);
+    for (var i = 0; i < n; i++) { a[i * 3] = (Math.random() - 0.5) * 16; a[i * 3 + 1] = Math.random() * 6; a[i * 3 + 2] = (Math.random() - 0.5) * 16; }
+    g.setAttribute('position', new T3.BufferAttribute(a, 3));
+    var pts = new T3.Points(g, new T3.PointsMaterial({ color: 0xff8a3a, size: 0.06, transparent: true, opacity: 0.85, blending: T3.AdditiveBlending, depthWrite: false }));
+    scene.add(pts);
+    return pts;
+  })();
+  function updateEmbers(dt, t) {
+    var a = embers.geometry.attributes.position;
+    for (var i = 0; i < a.count; i++) {
+      var y = a.getY(i) + dt * (0.25 + (i % 7) * 0.05);
+      if (y > 6) y = 0;
+      a.setY(i, y);
+      a.setX(i, a.getX(i) + Math.sin(t + i) * dt * 0.08);
+    }
+    a.needsUpdate = true;
+  }
 
   // ---------- camera quỹ đạo ----------
   var cam = { theta: 0, phi: 0.92, radius: 12.5, target: new T3.Vector3(0, 0, 0.3) };
@@ -292,7 +312,19 @@
     if (!a) return;
     var t = a.currentTime;
     try {
-      if (kind === 'step') noise(a, t, 0.07, 'lowpass', 380, 0.7, 0.35);
+      if (kind === 'step') { noise(a, t, 0.09, 'lowpass', 300, 0.7, 0.5); tone(a, t, 70, 45, 0.12, 'sine', 0.25); noise(a, t, 0.05, 'bandpass', 2200, 4, 0.08); }
+      else if (kind === 'stomp') { tone(a, t, 60, 30, 0.35, 'sine', 0.6); noise(a, t, 0.25, 'lowpass', 220, 0.7, 0.7); }
+      else if (kind === 'roar') {
+        var o1 = a.createOscillator(), o2 = a.createOscillator(), lp = a.createBiquadFilter(), gg = a.createGain();
+        o1.type = 'sawtooth'; o2.type = 'sawtooth';
+        o1.frequency.setValueAtTime(95, t); o1.frequency.linearRampToValueAtTime(130, t + 0.25); o1.frequency.linearRampToValueAtTime(75, t + 0.7);
+        o2.frequency.setValueAtTime(98, t); o2.frequency.linearRampToValueAtTime(126, t + 0.25); o2.frequency.linearRampToValueAtTime(72, t + 0.7);
+        lp.type = 'lowpass'; lp.frequency.setValueAtTime(500, t); lp.frequency.linearRampToValueAtTime(1300, t + 0.2); lp.frequency.linearRampToValueAtTime(400, t + 0.7);
+        gg.gain.setValueAtTime(0.0001, t); gg.gain.linearRampToValueAtTime(0.16 * sfxVol, t + 0.08); gg.gain.exponentialRampToValueAtTime(0.0008, t + 0.75);
+        o1.connect(lp); o2.connect(lp); lp.connect(gg); gg.connect(a.destination);
+        o1.start(t); o2.start(t); o1.stop(t + 0.8); o2.stop(t + 0.8);
+        noise(a, t, 0.6, 'bandpass', 800, 1.2, 0.18);
+      }
       else if (kind === 'hoof') { noise(a, t, 0.05, 'bandpass', 900, 3, 0.5); tone(a, t, 200, 120, 0.05, 'sine', 0.15); }
       else if (kind === 'clash') {
         noise(a, t, 0.18, 'highpass', 2500, 0.8, 0.5);
@@ -342,30 +374,68 @@
   }
 
   // Đi (hoặc nhảy với Hiệp sĩ) tới điểm `to`
+  // Gầm chiến trước khi xuất kích: giơ vũ khí lên cao, ngựa hí vang
+  function warCry(rig) {
+    var A = rig.armR, a0 = A.rotation.x, F = rig.foreR, f0 = F.rotation.x;
+    sfx(rig.kind === 'N' ? 'neigh' : 'roar');
+    rig.state = 'attack';
+    if (rig.eyes) rig.eyes.forEach(function (e) { e.scale.set(1.4, 1.6, 1); });
+    return tween(0.32, function (k) {
+      var e = Math.sin(Math.PI * k);
+      A.rotation.x = lerp(a0, -2.6, e); F.rotation.x = lerp(f0, -0.15, e);
+      rig.body.rotation.x = -0.12 * e;
+      if (rig.horseBody) { rig.horseBody.rotation.x = -0.3 * e; rig.hLegs[0].rotation.x = -0.8 * e; rig.hLegs[1].rotation.x = -0.6 * e; }
+    }).then(function () { if (rig.eyes) rig.eyes.forEach(function (e) { e.scale.set(1, 1, 1); }); rig.state = 'idle'; });
+  }
+
+  // Hành quân tới điểm `to`: bộ binh bước nặng tung bụi, vệ binh khổng lồ đi rung đất,
+  // hiệp sĩ phi nước đại cuốn bụi (nhảy vọt nếu đi chữ L), giáo sĩ / nữ hoàng lướt bay trên vòng phép
   function walkTo(rig, to, opts) {
     opts = opts || {};
     var from = rig.root.position.clone(), dist = from.distanceTo(to);
     if (dist < 0.01) return Promise.resolve();
-    var knight = rig.kind === 'N', speed = opts.speed || (knight ? 2.6 : 1.8);
-    return turnTo(rig, faceAngle(from, to)).then(function () {
+    var knight = rig.kind === 'N', glide = rig.glide;
+    var speed = opts.speed || (knight ? 2.8 : glide ? 1.7 : rig.heavy ? 1.15 : 1.4);
+    var ring = null;
+    if (glide) {
+      ring = mesh(new T3.TorusGeometry(0.42, 0.03, 8, 40), new T3.MeshBasicMaterial({ color: Ch.TEAM[rig.color].gem, transparent: true, opacity: 0.9, blending: T3.AdditiveBlending }), scene, from.x, 0.03, from.z, false);
+      ring.rotation.x = -Math.PI / 2;
+    }
+    return turnTo(rig, faceAngle(from, to), rig.heavy ? 0.35 : 0.22).then(function () {
       rig.state = 'walk';
-      var dur = dist / speed + 0.08, stepAt = 0, freq = knight ? 9 : 8;
+      var dur = dist / speed + 0.1, stepAt = 0, freq = knight ? 9 : 6.5, trail = 0;
       return tween(dur, function (k) {
         var e = opts.jump ? ease(k) : k < 0.12 ? k * k / 0.24 / 0.88 : k > 0.88 ? 1 - (1 - k) * (1 - k) / 0.24 / 0.88 : (k - 0.06) / 0.88;
         e = Math.max(0, Math.min(1, e));
         rig.root.position.lerpVectors(from, to, e);
         var amt = Math.min(1, k * 6, (1 - k) * 6);
         if (opts.jump) {
-          rig.root.position.y = Math.sin(Math.PI * k) * (0.35 + dist * 0.15);
-          if (rig.horseBody) rig.horseBody.rotation.x = -Math.cos(Math.PI * k) * 0.35;
-          rig.hLegs.forEach(function (l, i) { l.rotation.x = (i < 2 ? -1 : 1) * Math.sin(Math.PI * k) * 0.8; });
+          rig.root.position.y = Math.sin(Math.PI * k) * (0.4 + dist * 0.18);
+          if (rig.horseBody) rig.horseBody.rotation.x = -Math.cos(Math.PI * k) * 0.4;
+          rig.hLegs.forEach(function (l, i) { l.rotation.x = (i < 2 ? -1 : 1) * Math.sin(Math.PI * k) * 0.9; });
+          rig.hKnees.forEach(function (l, i) { l.rotation.x = (i < 2 ? 1.2 : -0.4) * Math.sin(Math.PI * k); });
+          rig.speed = 1; Ch.cloth(rig, elapsed);
+        } else if (glide) {
+          rig.root.position.y = 0.16 * amt + Math.sin(k * 12) * 0.015;
+          Ch.walk(rig, 0, amt, elapsed);
+          ring.position.set(rig.root.position.x, 0.03, rig.root.position.z);
+          ring.scale.setScalar(1 + Math.sin(elapsed * 8) * 0.08);
+          if (k - trail > 0.06) { trail = k; sparks(rig.root.position.clone().setY(0.1), Ch.TEAM[rig.color].gem, 3, 0.5); }
         } else Ch.walk(rig, dist * e * freq, amt, elapsed);
-        if (opts.jump) { rig.speed = 1; Ch.cloth(rig, elapsed); }
+        if (knight && !opts.jump && k - trail > 0.05) { trail = k; dust(rig.root.position, 1, 0x6a5a48); }
         var st = Math.floor(dist * e * freq / Math.PI);
-        if (st > stepAt) { stepAt = st; if (!opts.jump) sfx(knight ? 'hoof' : 'step'); }
+        if (st > stepAt && !glide) {
+          stepAt = st;
+          if (!opts.jump) {
+            sfx(knight ? 'hoof' : rig.heavy ? 'stomp' : 'step');
+            if (!knight) dust(rig.root.position, rig.heavy ? 4 : 2, 0x5a4c3c);
+            if (rig.heavy) shake = Math.max(shake, rig.kind === 'R' ? 0.06 : 0.035);
+          }
+        }
       }).then(function () {
         rig.root.position.copy(to);
-        if (opts.jump) { sfx('hoof'); dust(to, 6); }
+        if (ring) scene.remove(ring);
+        if (opts.jump) { sfx('stomp'); dust(to, 10, 0x5a4c3c); shake = Math.max(shake, 0.06); }
         Ch.rest(rig);
         rig.state = 'idle';
       });
@@ -444,14 +514,20 @@
   }
 
   // Trúng đòn rồi ngã xuống, chìm vào đất
+  var slowmo = 0;
   function die(vic, fromPos, keep) {
     vic.state = 'dead';
+    slowmo = 0.45;   // giây thực: thời gian chậm lại lúc trúng đòn
+    shake = Math.max(shake, 0.12);
     var chest = vic.root.position.clone().setY(0.55);
+    // bị hất văng lùi ra sau
+    var push = vic.root.position.clone().sub(fromPos).setY(0).normalize().multiplyScalar(0.28), p0 = vic.root.position.clone();
+    tween(0.3, function (k) { vic.root.position.set(p0.x + push.x * easeOut(k), Math.sin(Math.PI * k) * 0.12, p0.z + push.z * easeOut(k)); });
     sfx('clash');
     sparks(chest, 0xffd27a, 18, 2.4);
     var away = faceAngle(fromPos, vic.root.position), r = vic.root;
     var rot0 = r.rotation.y;
-    return tween(0.15, function (k) { r.rotation.y = rot0 + angDiff(away + Math.PI, rot0) * k; vic.body.rotation.x = -0.35 * k; })
+    return tween(0.31, function (k) { r.rotation.y = rot0 + angDiff(away + Math.PI, rot0) * Math.min(1, k * 2); vic.body.rotation.x = -0.35 * k; })
       .then(function () {
         // ngã ngửa ra sau (Hiệp sĩ đổ nghiêng cả ngựa)
         var pivot = new T3.Group();
@@ -489,10 +565,14 @@
     var dir = vp.clone().sub(ap).setY(0), dist = dir.length();
     dir.normalize();
     camFocus(ap.clone().lerp(vp, 0.5), Math.atan2(dir.x, dir.z));
-    var approach = Promise.resolve();
+    // quay mặt về phía đối thủ, gầm chiến, đối thủ cũng quay lại đối mặt
+    var approach = Promise.all([
+      turnTo(att, faceAngle(ap, vp), 0.25).then(function () { return warCry(att); }),
+      wait(0.2).then(function () { return turnTo(vic, faceAngle(vp, ap), 0.3); })
+    ]);
     if (!ranged && dist > 0.75) {
-      var stop = vp.clone().sub(dir.clone().multiplyScalar(att.kind === 'N' ? 0.85 : 0.62));
-      approach = walkTo(att, stop, { jump: att.kind === 'N' && !isLine(ap, vp) });
+      var stop = vp.clone().sub(dir.clone().multiplyScalar(att.kind === 'N' ? 0.9 : 0.68));
+      approach = approach.then(function () { return walkTo(att, stop, { jump: att.kind === 'N' && !isLine(ap, vp) }); });
     }
     var victimTurn = approach.then(function () { return turnTo(vic, faceAngle(vp, att.root.position), 0.2); });
     return Promise.all([approach.then(function () { return turnTo(att, faceAngle(att.root.position, vp), 0.15); }), victimTurn])
@@ -533,6 +613,7 @@
     if (S.sel >= 0) { var sp = sqPos(S.sel); selRing.position.set(sp.x, 0.02, sp.z); selRing.visible = true; } else selRing.visible = false;
   }
   function showLast(inf) {
+    mini.last = inf;
     lastMarks.forEach(function (p, i) {
       if (!inf) { p.visible = false; return; }
       var q = sqPos(i ? inf.to : inf.from);
@@ -606,10 +687,11 @@
   }
 
   function canInteract() { return !S.busy && !S.over && (S.opp === 'human' || S.game.turn === S.human); }
-  function onClick(x, y) {
+  function onClick(x, y) { clickSquare(pickSquare(x, y)); }
+  // dùng chung cho bàn 3D và bàn 2D mini
+  function clickSquare(sq) {
     try { window.Music.ctx(); } catch (e) { /* mở khóa âm thanh */ }
     if (!canInteract()) return;
-    var sq = pickSquare(x, y);
     if (sq < 0) { select(-1); return; }
     var opts = S.targets.filter(function (m) { return C.mTo(m) === sq; });
     if (S.sel >= 0 && opts.length) {
@@ -624,7 +706,59 @@
     S.sel = sq;
     S.targets = sq < 0 ? [] : S.game.legal().filter(function (m) { return C.mFrom(m) === sq; });
     showTargets();
+    renderMini();
   }
+
+  // ---------- bàn cờ 2D mini (bên phải, đổi được kích thước) ----------
+  var mini = { size: +prefs.mini || 240, flip: null, last: null, open: prefs.miniOpen !== false };
+  var miniEl = $('miniBoard');
+  function miniFlipped() { return mini.flip === null ? S.human === 1 : mini.flip; }
+  function renderMini() {
+    if (!miniEl) return;
+    $('mini').classList.toggle('closed', !mini.open);
+    miniEl.style.width = miniEl.style.height = mini.size + 'px';
+    if (!mini.open) return;
+    var g = S.game, html = '', fl = miniFlipped(), chk = g.inCheck() && !S.over ? g.king[g.turn] : -1;
+    var tg = {};
+    S.targets.forEach(function (m) { tg[C.mTo(m)] = 1; });
+    for (var i = 0; i < 64; i++) {
+      var sq = fl ? 63 - i : i, p = g.b[sq], cls = 'ms ' + ((((sq >> 3) + (sq & 7)) % 2) ? 'd' : 'l');
+      if (mini.last && (mini.last.from === sq || mini.last.to === sq)) cls += ' last';
+      if (S.sel === sq) cls += ' sel';
+      if (chk === sq) cls += ' chk';
+      if (tg[sq]) cls += p ? ' cap' : ' tgt';
+      html += '<div class="' + cls + '" data-sq="' + sq + '">' + (p ? '<i class="mp ' + 'wb'[p >> 3] + KIND[p & 7] + '"></i>' : '') + '</div>';
+    }
+    miniEl.innerHTML = html;
+  }
+  miniEl.addEventListener('click', function (e) {
+    var d = e.target.closest('[data-sq]');
+    if (d) clickSquare(+d.dataset.sq);
+  });
+  function setMiniSize(v) {
+    mini.size = Math.max(140, Math.min(520, Math.round(v)));
+    prefs.mini = mini.size; savePrefs();
+    document.documentElement.style.setProperty('--mini', mini.size + 'px');
+    renderMini();
+  }
+  (function () {
+    var h = $('miniResize'), st = null;
+    h.addEventListener('pointerdown', function (e) {
+      st = { x: e.clientX, y: e.clientY, s: mini.size };
+      h.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    });
+    h.addEventListener('pointermove', function (e) {
+      if (!st) return;
+      // góc trái-dưới: kéo sang trái hoặc xuống dưới để phóng to
+      setMiniSize(st.s + Math.max(st.x - e.clientX, e.clientY - st.y));
+    });
+    h.addEventListener('pointerup', function () { st = null; });
+    $('miniBigger').onclick = function () { setMiniSize(mini.size + 40); };
+    $('miniSmaller').onclick = function () { setMiniSize(mini.size - 40); };
+    $('miniFlip').onclick = function () { mini.flip = !miniFlipped(); renderMini(); };
+    $('miniToggle').onclick = function () { mini.open = !mini.open; prefs.miniOpen = mini.open; savePrefs(); renderMini(); };
+  })();
   function askPromo(color, cb) {
     var box = $('promo');
     box.innerHTML = '<div class="promo-title">Phong cấp thành:</div>' + [C.Q, C.R, C.B, C.N].map(function (ty) {
@@ -823,6 +957,7 @@
     showCheck();
     $('banner').hidden = true;
     userCam.theta = sideTheta(S.human); userCam.phi = 0.92; userCam.radius = 12.5;
+    mini.flip = null;
     camHome();
     renderHUD();
     requestAI();
@@ -865,6 +1000,7 @@
 
   // ---------- bảng thông tin ----------
   function renderHUD() {
+    renderMini();
     var g = S.game, st = $('status');
     if (S.over) st.textContent = S.over.text;
     else if (S.busy) st.textContent = '⚔ ' + side(g.turn ^ 1) + ' đang hành quân…';
@@ -936,7 +1072,9 @@
   function frame() {
     requestAnimationFrame(frame);
     var raw = Math.min(clock.getDelta(), 0.05), dt = raw * prefs.speed;
+    if (slowmo > 0) { slowmo -= raw; dt *= 0.22; }
     elapsed += raw;
+    updateEmbers(raw, elapsed);
     for (var i = tweens.length - 1; i >= 0; i--) {
       var tw = tweens[i];
       tw.t += dt;
@@ -961,6 +1099,7 @@
   }
 
   resize();
+  document.documentElement.style.setProperty('--mini', mini.size + 'px');
   syncDialog();
   newGame();
   cam.theta = camGoal.theta; cam.phi = camGoal.phi + 0.25; cam.radius = camGoal.radius + 6;

@@ -2,16 +2,23 @@
 
 Game cờ vua 3D chạy trên trình duyệt. Quân cờ là các nhân vật trung cổ: di chuyển, giao chiến và ngã xuống bằng hoạt ảnh.
 
-## Nhân vật
+## Hai đạo quân
 
-| Quân | Nhân vật | Đòn tấn công |
-|---|---|---|
-| Tốt | Lính bộ binh: mũ sắt, giáo, khiên huy hiệu | Đâm giáo |
-| Mã | Hiệp sĩ giáp toàn thân cưỡi chiến mã; bờm, đuôi, chùm lông mũ bay theo gió | Ngựa chồm hai vó, chém kiếm; di chuyển bằng cú nhảy vọt |
-| Tượng | Giáo sĩ: mũ giám mục, gậy mục tử gắn ngọc | Phóng cầu ánh sáng |
-| Xe | Vệ binh khổng lồ: giáp nặng, mũ tháp canh | Búa chiến đập xuống, rung màn hình |
-| Hậu | Nữ hoàng: vương miện, quyền trượng | Ba tia phép thuật |
-| Vua | Nhà vua: giáp tấm, áo choàng viền lông chồn | Chém kiếm |
+- **Đội Trắng: hiệp sĩ thánh.** Giáp bạc viền vàng, mũ có cánh và mào lông, huy hiệu hoa huệ, mắt xanh băng sau khe mũ.
+- **Đội Đen: quân đoàn bóng tối.** Giáp thép đen phủ gai, mũ có sừng, huy hiệu đầu lâu, mắt đỏ rực,
+  áo choàng rách tả tơi.
+
+| Quân | Nhân vật | Di chuyển | Đòn tấn công |
+|---|---|---|---|
+| Tốt | Lính cầm kích, khiên huy hiệu | Bước nặng tung bụi | Đâm kích |
+| Mã | Hiệp sĩ đại kiếm cưỡi chiến mã bọc giáp | Phi nước đại cuốn bụi, nhảy vọt khi đi chữ L | Ngựa chồm hai vó, chém kiếm |
+| Tượng | Pháp sư chiến trận đội mũ trùm | Lướt bay trên vòng phép | Phóng cầu ánh sáng |
+| Xe | Vệ binh khổng lồ: búa gai, khiên tháp | Mỗi bước rung mặt đất | Đập búa, rung màn hình |
+| Hậu | Nữ hoàng chiến binh: đại kiếm, cầu phép | Lướt bay trên vòng phép | Ba tia phép thuật |
+| Vua | Lãnh chúa: đại kiếm phát sáng, vương miện gai | Bước nặng, rung đất | Chém đại kiếm |
+
+Trước khi lao vào trận, nhân vật gầm chiến và giơ cao vũ khí. Đúng lúc trúng đòn, thời gian chậm lại và đối thủ
+bị hất văng rồi ngã xuống. Vua bị chiếu hết thì ngã xuống, quân bên thắng ăn mừng.
 
 Khi Vua bị chiếu hết, Vua ngã xuống và quân bên thắng nhảy lên ăn mừng.
 
@@ -22,6 +29,7 @@ Khi Vua bị chiếu hết, Vua ngã xuống và quân bên thắng nhảy lên 
   chiếu hết, hòa.
 - Camera xoay / phóng to bằng chuột hoặc cảm ứng. Chế độ "Cận cảnh" tự áp sát mỗi trận đánh.
   Tốc độ hoạt ảnh 1x–3x.
+- Bàn cờ 2D mini ở bên phải: bấm đi quân trực tiếp, kéo góc hoặc bấm +/− để đổi kích thước, xoay hướng, thu gọn.
 - Âm thanh tổng hợp (bước chân, vó ngựa, kiếm chạm, phép thuật) và nhạc nền.
 
 ## Chạy
@@ -37,3 +45,5 @@ Mở `index.html` qua một máy chủ tĩnh bất kỳ (GitHub Pages là đủ)
 | `js/chess.js`, `js/engine.js` | Luật cờ, engine dự phòng, bọc Stockfish |
 | `js/music.js` | Nhạc nền tự tổng hợp |
 | `js/three.min.js` | three.js r128 (giấy phép MIT, xem `js/three.LICENSE`) |
+
+Hình quân trên bàn 2D mini: bộ *Cburnett* của Colin M.L. Burnett (CC BY-SA 3.0), lấy từ Lichess.
