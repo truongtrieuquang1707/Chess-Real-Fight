@@ -677,5 +677,22 @@
     cloth(rig, t || ph * 0.4);
   }
 
-  window.Characters = { create: create, rest: rest, idle: idle, walk: walk, cloth: cloth, TEAM: TEAM, mat: mat, G: G, mesh: mesh, group: group };
+  // Thủ thế khi đang giao đấu: nhún nhảy trên hai chân, trọng tâm dịch qua lại, mắt chiến sáng rực
+  function stance(rig, t) {
+    var p = t * 3.4 + rig.phase;
+    rig.speed += (0.15 - rig.speed) * 0.1;
+    if (rig.kind !== 'N') {
+      rig.body.position.y = rig.baseY * 0.94 + Math.sin(p * 2) * 0.012;
+      rig.legL.rotation.x = -0.15 + Math.sin(p) * 0.16; rig.legR.rotation.x = 0.12 - Math.sin(p) * 0.16;
+      rig.kneeL.rotation.x = 0.3 + Math.max(0, Math.sin(p)) * 0.25; rig.kneeR.rotation.x = 0.2 + Math.max(0, -Math.sin(p)) * 0.25;
+      rig.body.rotation.z = Math.sin(p) * 0.03;
+    } else {
+      rig.hLegs[0].rotation.x = Math.sin(p * 0.9) * 0.18; rig.hKnees[0].rotation.x = Math.max(0, Math.sin(p * 0.9)) * 0.4;
+      rig.horseNeck.rotation.x = Math.sin(p * 0.7) * 0.1;
+    }
+    rig.head.rotation.y = Math.sin(t * 0.6 + rig.phase) * 0.06;
+    cloth(rig, t);
+  }
+
+  window.Characters = { stance: stance, create: create, rest: rest, idle: idle, walk: walk, cloth: cloth, TEAM: TEAM, mat: mat, G: G, mesh: mesh, group: group };
 })();

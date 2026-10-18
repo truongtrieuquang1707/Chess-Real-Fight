@@ -313,6 +313,8 @@
     var t = a.currentTime;
     try {
       if (kind === 'step') { noise(a, t, 0.09, 'lowpass', 300, 0.7, 0.5); tone(a, t, 70, 45, 0.12, 'sine', 0.25); noise(a, t, 0.05, 'bandpass', 2200, 4, 0.08); }
+      else if (kind === 'grind') { noise(a, t, 1.5, 'bandpass', 3200, 7, 0.16); tone(a, t, 1500, 1750, 1.4, 'sawtooth', 0.025); tone(a, t, 2300, 2100, 1.2, 'sine', 0.03); }
+      else if (kind === 'ward') { tone(a, t, 1000, 320, 0.4, 'sine', 0.16); tone(a, t, 1500, 500, 0.3, 'triangle', 0.06); }
       else if (kind === 'stomp') { tone(a, t, 60, 30, 0.35, 'sine', 0.6); noise(a, t, 0.25, 'lowpass', 220, 0.7, 0.7); }
       else if (kind === 'roar') {
         var o1 = a.createOscillator(), o2 = a.createOscillator(), lp = a.createBiquadFilter(), gg = a.createGain();
@@ -373,6 +375,120 @@
     return tween(dur || 0.22, function (k) { rig.root.rotation.y = a0 + d * ease(k); });
   }
 
+  // ---------- tiện ích giao chiến ----------
+  var ATK = 1.25;                                  // hệ số kéo dài hoạt ảnh đòn đánh
+  function tw(d, fn) { return tween(d * ATK, fn); }
+  function tww(d) { return wait(d * ATK); }
+  var slow = { t: 0, f: 0.22 };                   // thời gian chậm lại (giây thực, hệ số)
+  function hitstop(sec, f) { if (sec > slow.t) { slow.t = sec; slow.f = f; } }
+  var VAL = { P: 1, N: 3, B: 3, R: 5, Q: 9, K: 20 };
+  function isCaster(r) { return r.kind === 'B' || r.kind === 'Q'; }
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+  function dirFrom(a, b) { return b.root.position.clone().sub(a.root.position).setY(0).normalize(); }
+  function front(v, a) { return v.root.position.clone().add(dirFrom(v, a).multiplyScalar(0.28)).setY(0.78); }
+  function standState(r) { r.state = r.inDuel ? 'duel' : 'idle'; }
+  function slide(rig, to, dur) {
+    var p0 = rig.root.position.clone();
+    return tw(dur, function (k) { rig.root.position.lerpVectors(p0, to, easeOut(k)); });
+  }
+  // Trộn mượt từ tư thế hiện tại về tư thế nghỉ
+  function blendToRest(rig, dur) {
+    var js = [rig.armL, rig.armR, rig.foreL, rig.foreR, rig.body, rig.head];
+    if (rig.legL) js.push(rig.legL, rig.legR, rig.kneeL, rig.kneeR);
+    if (rig.weapon) js.push(rig.weapon);
+    if (rig.horseBody) js.push(rig.horseBody, rig.horseNeck);
+    if (rig.hLegs) rig.hLegs.forEach(function (l, i) { js.push(l, rig.hKnees[i]); });
+    var snap = function () { return js.map(function (j) { return [j.rotation.x, j.rotation.y, j.rotation.z]; }); };
+    var from = snap(), bp = rig.body.position.clone(), hy = rig.horseBody ? rig.horseBody.position.y : 0;
+    Ch.rest(rig);
+    var to = snap(), bt = rig.body.position.clone(), hyT = rig.horseBody ? rig.horseBody.position.y : 0;
+    js.forEach(function (j, i) { j.rotation.set(from[i][0], from[i][1], from[i][2]); });
+    rig.body.position.copy(bp);
+    if (rig.horseBody) rig.horseBody.position.y = hy;
+    return tw(dur / ATK, function (k) {
+      var e = ease(k);
+      js.forEach(function (j, i) { j.rotation.set(lerp(from[i][0], to[i][0], e), lerp(from[i][1], to[i][1], e), lerp(from[i][2], to[i][2], e)); });
+      rig.body.position.lerpVectors(bp, bt, e);
+      if (rig.horseBody) rig.horseBody.position.y = lerp(hy, hyT, e);
+    }).then(function () { standState(rig); });
+  }
+  // Thủ thế: giơ khiên, đưa vũ khí chắn trước người
+  function guardUp(rig) {
+    rig.state = 'attack';
+    var A = rig.armL, F = rig.foreL, R = rig.armR, FR = rig.foreR, B = rig.body, W = rig.weapon;
+    var a0 = A.rotation.x, az = A.rotation.z, f0 = F.rotation.x, r0 = R.rotation.x, fr0 = FR.rotation.x, b0 = B.rotation.x, w0 = W ? W.rotation.x : 0;
+    return tw(0.3, function (k) {
+      var e = ease(k);
+      A.rotation.x = lerp(a0, -1.5, e); A.rotation.z = lerp(az, -0.15, e); F.rotation.x = lerp(f0, -1.1, e);
+      R.rotation.x = lerp(r0, -1.3, e); FR.rotation.x = lerp(fr0, -0.9, e);
+      if (W) W.rotation.x = lerp(w0, 1.9, e);
+      B.rotation.x = lerp(b0, -0.08, e);
+    });
+  }
+  // Bị đòn đẩy lùi: người ngả ra sau, tay vung; mạnh thì khuỵu gối
+  function recoil(rig, away, power, big) {
+    rig.state = 'attack';
+    var p0 = rig.root.position.clone(), B = rig.body, by = B.position.y, bx = B.rotation.x;
+    var push = away.clone().multiplyScalar(0.24 * power), A = rig.armR, a0 = A.rotation.x;
+    var kl = rig.kneeL ? rig.kneeL.rotation.x : 0, kr = rig.kneeR ? rig.kneeR.rotation.x : 0;
+    return tw(big ? 0.6 : 0.32, function (k) {
+      var e = easeOut(Math.min(1, k * 1.6)), sb = Math.sin(Math.PI * Math.min(1, k * 1.2));
+      rig.root.position.set(p0.x + push.x * e, p0.y, p0.z + push.z * e);
+      B.rotation.x = bx - 0.32 * power * sb;
+      A.rotation.x = a0 + 0.8 * sb;
+      if (big && rig.kneeL) {
+        var d = sb > 0.6 ? 1 : sb / 0.6;
+        B.position.y = by - rig.baseY * 0.28 * d;
+        rig.kneeL.rotation.x = lerp(kl, 1.6, d); rig.kneeR.rotation.x = lerp(kr, 1.4, d);
+        rig.legL.rotation.x = -0.9 * d; rig.legR.rotation.x = -0.4 * d;
+      }
+    }).then(function () { return blendToRest(rig, 0.32); });
+  }
+  // Hai vũ khí va nhau: tia lửa, lóe sáng, rung màn hình, dừng hình ngắn
+  function clashAt(pt, power, ward, color) {
+    sfx('clash');
+    sparks(pt, 0xfff0b0, Math.round(14 + power * 8), 2.6 + power);
+    flash(pt, 0xffe0a0, 3 + power * 2);
+    shake = Math.max(shake, 0.06 + 0.05 * power);
+    hitstop(0.1, 0.05);
+    if (ward) {
+      sfx('ward');
+      var m = new T3.MeshBasicMaterial({ color: color || 0x9fd8ff, transparent: true, opacity: 0.6, blending: T3.AdditiveBlending, depthWrite: false, side: T3.DoubleSide });
+      var o = new T3.Mesh(new T3.SphereGeometry(0.5, 16, 12), m);
+      o.position.copy(pt); scene.add(o);
+      fx.push({ obj: o, mat: m, life: 0.55, age: 0, g: 0, grow: 0.7, fade: 0.6, v: new T3.Vector3() });
+    }
+  }
+  // Dùng chung: hai kẻ giằng co lưỡi kiếm, tia lửa bắn liên tục, bên mạnh hơn dần ép lùi bên kia
+  function bladeLock(att, vic, M, d0) {
+    att.state = vic.state = 'attack';
+    var P = [att, vic], A0 = att.root.position.clone(), V0 = vic.root.position.clone(), mid = A0.clone().lerp(V0, 0.5).setY(0.85);
+    var closeA = M.clone().sub(d0.clone().multiplyScalar(0.3)), closeV = M.clone().add(d0.clone().multiplyScalar(0.3));
+    sfx('grind');
+    var last = 0, pose = P.map(function (r) { return [r.armR.rotation.x, r.foreR.rotation.x, r.weapon ? r.weapon.rotation.x : 0, r.body.rotation.x]; });
+    return tw(1.2, function (k) {
+      var close = easeOut(Math.min(1, k * 4));
+      var sway = Math.sin(k * 24) * 0.012 * (1 - k * 0.5), tug = Math.sin(k * 9) * 0.07 * (1 - k) + k * 0.12;   // càng về cuối bên tấn công càng lấn
+      att.root.position.lerpVectors(A0, closeA, close).addScaledVector(d0, tug);
+      vic.root.position.lerpVectors(V0, closeV, close).addScaledVector(d0, tug);
+      P.forEach(function (r, i) {
+        var e = easeOut(Math.min(1, k * 5)), o = pose[i];
+        r.armR.rotation.x = lerp(o[0], -1.45, e) + (Math.random() - 0.5) * 0.05; r.foreR.rotation.x = lerp(o[1], -0.5, e);
+        if (r.weapon) r.weapon.rotation.x = lerp(o[2], 1.25, e);
+        r.body.rotation.x = lerp(o[3], i ? -0.1 - k * 0.2 : 0.2, e);
+        r.root.position.x += (Math.random() - 0.5) * sway; r.root.position.z += (Math.random() - 0.5) * sway;
+        if (r.eyes) r.eyes.forEach(function (e2) { e2.scale.set(1.3, 1.5, 1); });
+      });
+      shake = Math.max(shake, 0.035 + k * 0.04);
+      if (k - last > 0.045) { last = k; sparks(mid, 0xffe9a8, 3, 1.6); }
+    }).then(function () {
+      P.forEach(function (r) { if (r.eyes) r.eyes.forEach(function (e2) { e2.scale.set(1, 1, 1); }); });
+      clashAt(mid, 1.8, false);
+      var rv = recoil(vic, d0, 1.9, true);
+      return Promise.all([rv, blendToRest(att, 0.5)]);
+    });
+  }
+
   // Đi (hoặc nhảy với Hiệp sĩ) tới điểm `to`
   // Gầm chiến trước khi xuất kích: giơ vũ khí lên cao, ngựa hí vang
   function warCry(rig) {
@@ -380,12 +496,12 @@
     sfx(rig.kind === 'N' ? 'neigh' : 'roar');
     rig.state = 'attack';
     if (rig.eyes) rig.eyes.forEach(function (e) { e.scale.set(1.4, 1.6, 1); });
-    return tween(0.32, function (k) {
+    return tween(0.5, function (k) {
       var e = Math.sin(Math.PI * k);
       A.rotation.x = lerp(a0, -2.6, e); F.rotation.x = lerp(f0, -0.15, e);
       rig.body.rotation.x = -0.12 * e;
       if (rig.horseBody) { rig.horseBody.rotation.x = -0.3 * e; rig.hLegs[0].rotation.x = -0.8 * e; rig.hLegs[1].rotation.x = -0.6 * e; }
-    }).then(function () { if (rig.eyes) rig.eyes.forEach(function (e) { e.scale.set(1, 1, 1); }); rig.state = 'idle'; });
+    }).then(function () { if (rig.eyes) rig.eyes.forEach(function (e) { e.scale.set(1, 1, 1); }); standState(rig); });
   }
 
   // Hành quân tới điểm `to`: bộ binh bước nặng tung bụi, vệ binh khổng lồ đi rung đất,
@@ -437,7 +553,7 @@
         if (ring) scene.remove(ring);
         if (opts.jump) { sfx('stomp'); dust(to, 10, 0x5a4c3c); shake = Math.max(shake, 0.06); }
         Ch.rest(rig);
-        rig.state = 'idle';
+        standState(rig);
       });
     });
   }
@@ -448,22 +564,22 @@
     var r = att, A = r.armR, W = r.weapon, B = r.body, aim = vic.root.position.clone().setY(0.55);
     var a0 = A.rotation.x, z0 = A.rotation.z, w0 = W.rotation.x, bz = B.position.z, by = B.position.y, F = r.foreR, f0 = F.rotation.x;
     r.state = 'attack';
-    tween(0.25, function (k) { F.rotation.x = lerp(f0, -0.1, k); });
-    var done = function () { return tween(0.3, function (k) { F.rotation.x = lerp(F.rotation.x, r.restFore.R, k); A.rotation.x = lerp(A.rotation.x, r.restArm.R[0], k); A.rotation.z = lerp(A.rotation.z, r.restArm.R[2], k); W.rotation.x = lerp(W.rotation.x, r.weaponRest, k); B.position.z = lerp(B.position.z, 0, k); B.rotation.x = lerp(B.rotation.x, 0, k); }).then(function () { Ch.rest(r); r.state = 'idle'; }); };
+    tw(0.25, function (k) { F.rotation.x = lerp(f0, -0.1, k); });
+    var done = function () { return blendToRest(r, 0.32); };
     if (r.attack === 'thrust') {
-      return tween(0.28, function (k) { var e = ease(k); A.rotation.x = lerp(a0, -0.7, e); W.rotation.x = lerp(w0, 2.27, e); B.position.z = lerp(bz, -0.04, e); })
-        .then(function () { sfx('thrust'); return tween(0.11, function (k) { A.rotation.x = lerp(-0.7, -1.45, k); W.rotation.x = lerp(2.27, 3.02, k); B.position.z = lerp(-0.04, 0.1, k); }); })
-        .then(function () { onImpact(); return wait(0.15); }).then(done);
+      return tw(0.28, function (k) { var e = ease(k); A.rotation.x = lerp(a0, -0.7, e); W.rotation.x = lerp(w0, 2.27, e); B.position.z = lerp(bz, -0.04, e); })
+        .then(function () { sfx('thrust'); return tw(0.11, function (k) { A.rotation.x = lerp(-0.7, -1.45, k); W.rotation.x = lerp(2.27, 3.02, k); B.position.z = lerp(-0.04, 0.1, k); }); })
+        .then(function () { onImpact(); return tww(0.15); }).then(done);
     }
     if (r.attack === 'slash') {
-      return tween(0.32, function (k) { var e = ease(k); A.rotation.x = lerp(a0, -2.5, e); A.rotation.z = lerp(z0, 0.9, e); W.rotation.x = lerp(w0, 0.3, e); B.rotation.y = 0; })
-        .then(function () { sfx('swing'); return tween(0.13, function (k) { A.rotation.x = lerp(-2.5, -0.9, k); A.rotation.z = lerp(0.9, -0.6, k); B.position.z = lerp(0, 0.06, k); }); })
-        .then(function () { onImpact(); return wait(0.18); }).then(done);
+      return tw(0.32, function (k) { var e = ease(k); A.rotation.x = lerp(a0, -2.5, e); A.rotation.z = lerp(z0, 0.9, e); W.rotation.x = lerp(w0, 0.3, e); B.rotation.y = 0; })
+        .then(function () { sfx('swing'); return tw(0.13, function (k) { A.rotation.x = lerp(-2.5, -0.9, k); A.rotation.z = lerp(0.9, -0.6, k); B.position.z = lerp(0, 0.06, k); }); })
+        .then(function () { onImpact(); return tww(0.18); }).then(done);
     }
     if (r.attack === 'smash') {
-      return tween(0.42, function (k) { var e = ease(k); A.rotation.x = lerp(a0, -2.95, e); W.rotation.x = lerp(w0, 0.1, e); B.rotation.x = lerp(0, -0.12, e); })
-        .then(function () { sfx('swing'); return tween(0.12, function (k) { A.rotation.x = lerp(-2.95, -0.75, easeIn(k)); B.rotation.x = lerp(-0.12, 0.18, k); }); })
-        .then(function () { onImpact(); shake = 0.25; dust(aim.clone().setY(0), 12); return wait(0.25); }).then(done);
+      return tw(0.42, function (k) { var e = ease(k); A.rotation.x = lerp(a0, -2.95, e); W.rotation.x = lerp(w0, 0.1, e); B.rotation.x = lerp(0, -0.12, e); })
+        .then(function () { sfx('swing'); return tw(0.12, function (k) { A.rotation.x = lerp(-2.95, -0.75, easeIn(k)); B.rotation.x = lerp(-0.12, 0.18, k); }); })
+        .then(function () { onImpact(); shake = 0.25; dust(aim.clone().setY(0), 12); return tww(0.25); }).then(done);
     }
     if (r.attack === 'rear') {
       var hb = r.horseBody, HL = r.hLegs, HK = r.hKnees, hy = r.horseBaseY;
@@ -475,38 +591,38 @@
         HK[0].rotation.x = 1.5 * k; HK[1].rotation.x = 1.3 * k;
         HL[2].rotation.x = 0.35 * k; HL[3].rotation.x = 0.35 * k; HK[2].rotation.x = -0.3 * k; HK[3].rotation.x = -0.3 * k;
       };
-      return tween(0.45, function (k) { rearUp(ease(k)); A.rotation.x = lerp(a0, -2.7, ease(k)); A.rotation.z = lerp(z0, 0.6, ease(k)); W.rotation.x = lerp(w0, 0.2, ease(k)); })
-        .then(function () { sfx('swing'); return tween(0.16, function (k) { rearUp(1 - k * 0.6); A.rotation.x = lerp(-2.7, -0.7, k); A.rotation.z = lerp(0.6, -0.5, k); r.rider.position.z = lerp(-0.03, 0.06, k); }); })
-        .then(function () { onImpact(); dust(r.root.position.clone(), 6); return tween(0.3, function (k) { rearUp(0.4 * (1 - k)); r.rider.position.z = lerp(0.06, -0.03, k); }); })
+      return tw(0.45, function (k) { rearUp(ease(k)); A.rotation.x = lerp(a0, -2.7, ease(k)); A.rotation.z = lerp(z0, 0.6, ease(k)); W.rotation.x = lerp(w0, 0.2, ease(k)); })
+        .then(function () { sfx('swing'); return tw(0.16, function (k) { rearUp(1 - k * 0.6); A.rotation.x = lerp(-2.7, -0.7, k); A.rotation.z = lerp(0.6, -0.5, k); r.rider.position.z = lerp(-0.03, 0.06, k); }); })
+        .then(function () { onImpact(); dust(r.root.position.clone(), 6); return tw(0.3, function (k) { rearUp(0.4 * (1 - k)); r.rider.position.z = lerp(0.06, -0.03, k); }); })
         .then(function () { sfx('hoof'); return done(); });
     }
     var tip = new T3.Vector3();
     if (r.attack === 'beam') {
-      return tween(0.4, function (k) { var e = ease(k); A.rotation.x = lerp(a0, -2.3, e); W.rotation.x = lerp(w0, 0.9, e); r.orb.scale.setScalar(1 + e * 1.2); })
+      return tw(0.4, function (k) { var e = ease(k); A.rotation.x = lerp(a0, -2.3, e); W.rotation.x = lerp(w0, 0.9, e); r.orb.scale.setScalar(1 + e * 1.2); })
         .then(function () {
           sfx('magic');
           r.orb.getWorldPosition(tip);
           flash(tip, Ch.TEAM[r.color].gem, 2.5);
-          return projectile(tip, aim, Ch.TEAM[r.color].gem, 0.42, 0);
+          return projectile(tip, aim, Ch.TEAM[r.color].gem, 0.32, 0);
         })
-        .then(function () { sfx('boom'); flash(aim, Ch.TEAM[r.color].gem, 4); sparks(aim, Ch.TEAM[r.color].gem, 22, 2.6); onImpact(); return wait(0.2); }).then(done);
+        .then(function () { sfx('boom'); flash(aim, Ch.TEAM[r.color].gem, 4); sparks(aim, Ch.TEAM[r.color].gem, 22, 2.6); onImpact(); return tww(0.2); }).then(done);
     }
     if (r.attack === 'magic') {
       var L = r.armL, l0 = L.rotation.x, col = Ch.TEAM[r.color].gem;
-      return tween(0.42, function (k) { var e = ease(k); A.rotation.x = lerp(a0, -1.7, e); L.rotation.x = lerp(l0, -1.7, e); A.rotation.z = lerp(z0, -0.25, e); L.rotation.z = lerp(L.rotation.z, 0.25, e); r.orb.scale.setScalar(1 + e); })
+      return tw(0.42, function (k) { var e = ease(k); A.rotation.x = lerp(a0, -1.7, e); L.rotation.x = lerp(l0, -1.7, e); A.rotation.z = lerp(z0, -0.25, e); L.rotation.z = lerp(L.rotation.z, 0.25, e); r.orb.scale.setScalar(1 + e); })
         .then(function () {
           sfx('magic');
           r.orb.getWorldPosition(tip);
           var hit = false;
           return Promise.all([-1, 0, 1].map(function (cv, i) {
-            return wait(i * 0.09).then(function () { return projectile(tip, aim, col, 0.45, cv * 1.4); }).then(function () {
+            return wait(i * 0.09).then(function () { return projectile(tip, aim, col, 0.34, cv * 1.4); }).then(function () {
               sparks(aim, col, 10, 2);
               if (!hit) { hit = true; sfx('boom'); flash(aim, col, 4); onImpact(); }
             });
           }));
         })
-        .then(function () { return wait(0.2); })
-        .then(function () { return tween(0.3, function (k) { L.rotation.x = lerp(L.rotation.x, r.restArm.L[0], k); L.rotation.z = lerp(L.rotation.z, r.restArm.L[2], k); }); })
+        .then(function () { return tww(0.2); })
+        .then(function () { return tw(0.3, function (k) { L.rotation.x = lerp(L.rotation.x, r.restArm.L[0], k); L.rotation.z = lerp(L.rotation.z, r.restArm.L[2], k); }); })
         .then(done);
     }
     onImpact();
@@ -514,21 +630,36 @@
   }
 
   // Trúng đòn rồi ngã xuống, chìm vào đất
-  var slowmo = 0;
   function die(vic, fromPos, keep) {
+    var big = VAL[vic.kind] >= 5;
     vic.state = 'dead';
-    slowmo = 0.45;   // giây thực: thời gian chậm lại lúc trúng đòn
-    shake = Math.max(shake, 0.12);
-    var chest = vic.root.position.clone().setY(0.55);
-    // bị hất văng lùi ra sau
-    var push = vic.root.position.clone().sub(fromPos).setY(0).normalize().multiplyScalar(0.28), p0 = vic.root.position.clone();
-    tween(0.3, function (k) { vic.root.position.set(p0.x + push.x * easeOut(k), Math.sin(Math.PI * k) * 0.12, p0.z + push.z * easeOut(k)); });
+    hitstop(big ? 0.8 : 0.5, big ? 0.15 : 0.22);   // đòn quyết định: thời gian chậm lại
+    shake = Math.max(shake, big ? 0.2 : 0.12);
+    var chest = vic.root.position.clone().setY(0.6);
+    var push = vic.root.position.clone().sub(fromPos).setY(0).normalize().multiplyScalar(big ? 0.4 : 0.28), p0 = vic.root.position.clone();
+    tween(big ? 0.55 : 0.3, function (k) { vic.root.position.set(p0.x + push.x * easeOut(k), Math.sin(Math.PI * k) * 0.14, p0.z + push.z * easeOut(k)); });
     sfx('clash');
-    sparks(chest, 0xffd27a, 18, 2.4);
-    var away = faceAngle(fromPos, vic.root.position), r = vic.root;
-    var rot0 = r.rotation.y;
-    return tween(0.31, function (k) { r.rotation.y = rot0 + angDiff(away + Math.PI, rot0) * Math.min(1, k * 2); vic.body.rotation.x = -0.35 * k; })
-      .then(function () {
+    sparks(chest, 0xffd27a, big ? 34 : 18, big ? 3.2 : 2.4);
+    if (big) { flash(chest, 0xffffff, 6); sfx('boom'); }
+    var away = faceAngle(fromPos, vic.root.position), r = vic.root, rot0 = r.rotation.y;
+    var go = tween(big ? 0.5 : 0.31, function (k) { r.rotation.y = rot0 + angDiff(away + Math.PI, rot0) * Math.min(1, k * 2); vic.body.rotation.x = -0.35 * k; });
+    if (big) {
+      // quân quý bị hạ: loạng choạng, khuỵu xuống, mắt tắt dần rồi mới đổ
+      go = go.then(function () {
+        var B = vic.body, by = B.position.y, A = vic.armR, a0 = A.rotation.x, w = vic.weapon, w0 = w ? w.rotation.x : 0;
+        sfx('fall');
+        return tween(0.95, function (k) {
+          var e = ease(k);
+          if (vic.legL) { vic.legL.rotation.x = lerp(0, -1.1, e); vic.legR.rotation.x = lerp(0, -0.5, e); vic.kneeL.rotation.x = lerp(0.2, 1.7, e); vic.kneeR.rotation.x = lerp(0.1, 1.5, e); }
+          B.position.y = lerp(by, by * 0.55, e) + Math.sin(k * 30) * 0.004 * (1 - k);
+          B.rotation.x = lerp(-0.35, 0.3, e);
+          A.rotation.x = lerp(a0, 0.3, e); if (w) w.rotation.x = lerp(w0, 2.6, e);
+          vic.head.rotation.x = lerp(0, 0.5, e);
+          if (vic.eyes) vic.eyes.forEach(function (x) { x.scale.y = lerp(1, 0.12, e); });
+        });
+      });
+    }
+    return go.then(function () {
         // ngã ngửa ra sau (Hiệp sĩ đổ nghiêng cả ngựa)
         var pivot = new T3.Group();
         pivot.userData.pivot = true;
@@ -540,48 +671,113 @@
         r.rotation.set(0, 0, 0);
         pivot.add(r);
         vic.pivot = pivot;
-        Ch.rest(vic);
-        vic.armL.rotation.x = -2.2; vic.armR.rotation.x = -2.0;
-        return tween(0.55, function (k) {
+        if (!big) { Ch.rest(vic); vic.armL.rotation.x = -2.2; vic.armR.rotation.x = -2.0; }
+        return tween(big ? 0.8 : 0.55, function (k) {
           var e = easeIn(k);
           if (vic.kind === 'N') pivot.rotation.z = 1.45 * e; else pivot.rotation.x = -1.45 * e;
         });
       })
       .then(function () {
         sfx('fall');
-        dust(vic.pivot.position, 10);
+        shake = Math.max(shake, big ? 0.14 : 0.05);
+        dust(vic.pivot.position, big ? 18 : 10);
         if (keep) return null;
-        return wait(0.35).then(function () {
+        // xác chìm dần xuống đất (chạy nền, quân thắng không phải đợi)
+        wait(big ? 0.7 : 0.35).then(function () {
           var p = vic.pivot, y0 = p.position.y;
           return tween(0.8, function (k) { p.position.y = y0 - 0.7 * k; p.scale.setScalar(1 - 0.4 * k); });
         }).then(function () { scene.remove(vic.pivot); });
+        return null;
       });
   }
 
-  // Toàn bộ trận đánh khi ăn quân: tiếp cận, ra đòn, đối phương ngã, rồi chiếm ô
+  var duelPair = null;   // [quân tấn công, quân bị tấn công]: camera bám theo điểm giữa hai bên
+  function dbg(l) { if (window.__dbg) window.__dbg.push(l + ' ' + elapsed.toFixed(1)); }
+  function camOrbit(dTheta, radius, phi) {
+    if (!prefs.cam) return;
+    camGoal.theta += dTheta; camGoal.radius = radius; if (phi) camGoal.phi = phi;
+  }
+  // Một hiệp: bên tấn công ra đòn, bên bị tấn công đỡ (bị đẩy lùi), rồi phản công, bên tấn công đỡ lại
+  function exchange(att, vic, i, st) {
+    camOrbit(i % 2 ? -0.28 : 0.3, 4.2 - i * 0.35, 1.0 + i * 0.04);
+    var rec, g = guardUp(vic);
+    var s1 = strike(att, vic, function () {
+      clashAt(front(vic, att), st.rV, isCaster(vic), Ch.TEAM[vic.color].gem);
+      rec = recoil(vic, dirFrom(att, vic), st.rV * 0.8, false);
+    });
+    dbg('ex' + i + ' start');
+    return Promise.all([g, s1]).then(function () { dbg('ex' + i + ' strike1 done'); return rec; })
+      .then(function () { dbg('ex' + i + ' recoil1 done'); return counter(vic, att, st.rA); })
+      .then(function () { dbg('ex' + i + ' counter done'); return st.reposition(i); })
+      .then(function () { dbg('ex' + i + ' end'); });
+  }
+  // Phản công của người bị tấn công: quân yếu vẫn vùng lên; quân mạnh ra đòn rất nặng
+  function counter(vic, att, pw) {
+    var dist = vic.root.position.distanceTo(att.root.position);
+    if (!isCaster(vic) && dist > 1.8) {
+      var to = vic.root.position.clone().add(dirFrom(vic, att).multiplyScalar(Math.min(0.6, dist - 1.3)));
+      return walkTo(vic, to, { speed: 2.0 });
+    }
+    var rec, g = guardUp(att);
+    var s2 = strike(vic, att, function () {
+      clashAt(front(att, vic), pw, isCaster(att), Ch.TEAM[att.color].gem);
+      rec = recoil(att, dirFrom(vic, att), pw * 0.8, pw >= 1.3);
+    });
+    return Promise.all([g, s2]).then(function () { return rec; });
+  }
+
+  // Toàn bộ trận đánh khi ăn quân: đối mặt, gầm chiến, nhiều hiệp giao đấu (quân càng quý chống trả càng lâu),
+  // giằng co lưỡi kiếm với quân nặng ký, rồi đòn quyết định
   function battle(att, vic, dest) {
-    var ranged = att.kind === 'B' || att.kind === 'Q';
+    var av = VAL[att.kind], vv = VAL[vic.kind], casterA = isCaster(att), knight = att.kind === 'N';
     var vp = vic.root.position.clone(), ap = att.root.position.clone();
     var dir = vp.clone().sub(ap).setY(0), dist = dir.length();
     dir.normalize();
     camFocus(ap.clone().lerp(vp, 0.5), Math.atan2(dir.x, dir.z));
-    // quay mặt về phía đối thủ, gầm chiến, đối thủ cũng quay lại đối mặt
-    var approach = Promise.all([
-      turnTo(att, faceAngle(ap, vp), 0.25).then(function () { return warCry(att); }),
-      wait(0.2).then(function () { return turnTo(vic, faceAngle(vp, ap), 0.3); })
+    if (vv > av) showBanner('⚔ ' + NAME[att.kind] + ' thách đấu ' + NAME[vic.kind] + '!');
+    att.inDuel = vic.inDuel = true;
+    duelPair = [att, vic];
+    var p = Promise.all([
+      turnTo(att, faceAngle(ap, vp), 0.3).then(function () { return warCry(att); }),
+      wait(0.2).then(function () { return turnTo(vic, faceAngle(vp, ap), 0.35); }).then(function () { return vv >= 3 ? warCry(vic) : null; })
     ]);
-    if (!ranged && dist > 0.75) {
-      var stop = vp.clone().sub(dir.clone().multiplyScalar(att.kind === 'N' ? 0.9 : 0.68));
-      approach = approach.then(function () { return walkTo(att, stop, { jump: att.kind === 'N' && !isLine(ap, vp) }); });
+    if (!casterA && dist > 0.75) {
+      var stop = vp.clone().sub(dir.clone().multiplyScalar(knight ? 0.95 : 0.8));
+      p = p.then(function () { return walkTo(att, stop, { jump: knight && !isLine(ap, vp), speed: knight ? 3.4 : 2.1 }); });   // lao vào trận
     }
-    var victimTurn = approach.then(function () { return turnTo(vic, faceAngle(vp, att.root.position), 0.2); });
-    return Promise.all([approach.then(function () { return turnTo(att, faceAngle(att.root.position, vp), 0.15); }), victimTurn])
-      .then(function () {
-        var dying;
-        return strike(att, vic, function () { dying = die(vic, att.root.position); }).then(function () { return dying; });
-      })
-      .then(function () { return walkTo(att, dest); })
-      .then(function () { return turnTo(att, forwardAngle(att.color), 0.25); });
+    dbg('battle start');
+    return p.then(function () {
+      dbg('face+approach done');
+      var M = att.root.position.clone().lerp(vic.root.position, 0.5).setY(0), d0 = dirFrom(att, vic);
+      var melee = !casterA && att.root.position.distanceTo(vic.root.position) < 1.8;
+      var st = {
+        rV: clamp(av / vv, 0.5, 2),          // đòn của kẻ tấn công nặng bao nhiêu với nạn nhân
+        rA: clamp(vv / av, 0.5, 2.2),        // đòn phản công nặng bao nhiêu (Hậu phản đòn Tốt rất nặng)
+        reposition: function (i) {
+          if (!melee) return Promise.resolve();
+          var g = (knight ? 1.0 : 0.85) - i * 0.04;
+          return Promise.all([
+            slide(att, M.clone().sub(d0.clone().multiplyScalar(g / 2)), 0.35),
+            slide(vic, M.clone().add(d0.clone().multiplyScalar(g / 2)), 0.35)
+          ]).then(function () { return Promise.all([turnTo(att, faceAngle(att.root.position, vic.root.position), 0.2), turnTo(vic, faceAngle(vic.root.position, att.root.position), 0.2)]); });
+        }
+      };
+      var rounds = vv <= 1 ? 1 : 2, seq = Promise.resolve();
+      for (var i = 0; i < rounds; i++) (function (i) { seq = seq.then(function () { return exchange(att, vic, i, st); }); })(i);
+      if (vv >= 5 && melee) seq = seq.then(function () { dbg('lock start'); camOrbit(0.2, 3.3, 0.95); return bladeLock(att, vic, M, d0); }).then(function () { dbg('lock done'); return st.reposition(rounds); });
+      if (vv >= 9) seq = seq.then(function () { camOrbit(-0.25, 3.4, 0.98); return warCry(att); });   // dồn sức cho đòn cuối
+      return seq;
+    }).then(function () {
+      dbg('before final');
+      camOrbit(0.15, 3.1, 0.92);
+      var dying;
+      return strike(att, vic, function () { dying = die(vic, att.root.position); }).then(function () { return dying; });
+    }).then(function () {
+      dbg('die done');
+      att.inDuel = vic.inDuel = false;
+      duelPair = null;
+      return walkTo(att, dest);
+    }).then(function () { return turnTo(att, forwardAngle(att.color), 0.25); });
   }
   function isLine(a, b) { var dx = Math.abs(a.x - b.x), dz = Math.abs(a.z - b.z); return dx < 0.01 || dz < 0.01 || Math.abs(dx - dz) < 0.01; }
 
@@ -1069,10 +1265,16 @@
 
   // ---------- vòng lặp khung hình ----------
   var clock = new T3.Clock(), elapsed = 0;
+  var paused = false;   // chỉ dùng khi kiểm thử: dừng đồng hồ thật, tự cho mô phỏng chạy từng bước
   function frame() {
     requestAnimationFrame(frame);
-    var raw = Math.min(clock.getDelta(), 0.05), dt = raw * prefs.speed;
-    if (slowmo > 0) { slowmo -= raw; dt *= 0.22; }
+    var raw = Math.min(clock.getDelta(), 0.05);
+    if (!paused) tick(raw);
+    renderer.render(scene, camera);
+  }
+  function tick(raw) {
+    var dt = raw * prefs.speed;
+    if (slow.t > 0) { slow.t -= raw; dt *= slow.f; }
     elapsed += raw;
     updateEmbers(raw, elapsed);
     for (var i = tweens.length - 1; i >= 0; i--) {
@@ -1082,7 +1284,7 @@
       tw.fn(k);
       if (k >= 1) { tweens.splice(i, 1); tw.res(); }
     }
-    Object.keys(S.actors).forEach(function (q) { var a = S.actors[q]; if (a.state === 'idle') Ch.idle(a, elapsed); else if (a.state !== 'walk') Ch.cloth(a, elapsed); });
+    Object.keys(S.actors).forEach(function (q) { var a = S.actors[q]; if (a.state === 'idle') Ch.idle(a, elapsed); else if (a.state === 'duel') Ch.stance(a, elapsed); else if (a.state !== 'walk') Ch.cloth(a, elapsed); });
     flames.forEach(function (f) {
       var fl = 0.85 + Math.sin(elapsed * 13 + f.ph) * 0.08 + Math.sin(elapsed * 23 + f.ph * 2) * 0.06;
       f.fire.scale.set(1, fl * 1.1, 1);
@@ -1094,8 +1296,12 @@
     checkRing.material.color.setHSL(0.01, 1, 0.45 + Math.sin(elapsed * 8) * 0.12);
     markers.children.forEach(function (m) { m.position.y = 0.02 + Math.sin(elapsed * 4) * 0.008; });
     updateFx(dt);
+    if (duelPair && prefs.cam) {
+      var a = duelPair[0].root.position, b = duelPair[1].root.position;
+      camGoal.target.set((a.x + b.x) / 2, 0.55, (a.z + b.z) / 2);
+    }
     updateCamera(raw);
-    renderer.render(scene, camera);
+    // microtask của các promise (chuỗi hoạt ảnh) chạy xen kẽ ở lần gọi sau
   }
 
   resize();
@@ -1111,5 +1317,9 @@
     S.game = new Game(fen); S.hist = []; S.keys = {};
     syncActors(); select(-1); renderHUD();
   }
-  window.__rf = { S: S, play: play, load: load, scene: scene, camGoal: camGoal, prefs: prefs };
+  window.__rf = { sim: function (sec, step) {
+      paused = true; step = step || 1 / 30;
+      var t = 0;
+      return new Promise(function (res) { (function go() { if (t >= sec) return res(); tick(step); t += step; Promise.resolve().then(go); })(); });
+    }, S: S, play: play, load: load, scene: scene, camGoal: camGoal, prefs: prefs };
 })();

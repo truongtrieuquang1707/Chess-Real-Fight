@@ -17,8 +17,23 @@ Game cờ vua 3D chạy trên trình duyệt. Quân cờ là các nhân vật tr
 | Hậu | Nữ hoàng chiến binh: đại kiếm, cầu phép | Lướt bay trên vòng phép | Ba tia phép thuật |
 | Vua | Lãnh chúa: đại kiếm phát sáng, vương miện gai | Bước nặng, rung đất | Chém đại kiếm |
 
-Trước khi lao vào trận, nhân vật gầm chiến và giơ cao vũ khí. Đúng lúc trúng đòn, thời gian chậm lại và đối thủ
-bị hất văng rồi ngã xuống. Vua bị chiếu hết thì ngã xuống, quân bên thắng ăn mừng.
+## Giao chiến nhiều hiệp
+
+Quân bị ăn không đứng yên chịu trận: càng quý càng chống trả lâu và hiểm.
+
+1. **Đối mặt:** hai bên quay mặt vào nhau và gầm chiến (quân bị ăn có giá trị từ 3 trở lên cũng gầm lại); bên tấn công lao vào trận.
+2. **Các hiệp giao đấu:** bên tấn công ra đòn, bên kia giơ khiên đỡ (tia lửa, lóe sáng, màn hình rung, dừng hình ngắn),
+   bị đẩy lùi; rồi bên bị ăn phản công và bên tấn công phải đỡ. Quân yếu bị ăn (Tốt) chỉ chống trả một hiệp;
+   quân quý (Xe, Hậu) đánh trả hai hiệp.
+3. **Sức mạnh thể hiện theo giá trị quân:** đòn phản công nặng hay nhẹ tùy tỉ lệ giá trị hai bên. Tốt ăn Hậu thì
+   Hậu đánh trả rất nặng, hất văng và làm Tốt khuỵu gối, còn Hậu ăn Tốt thì Tốt chỉ cầm cự yếu ớt.
+   Hai bên đều không còn xứng tầm nhau thì có hộp thoại "Lính thách đấu Nữ hoàng!".
+4. **Giằng co lưỡi kiếm** (khi quân bị ăn là Xe hoặc Hậu): hai bên ép sát, vũ khí chạm nhau, tia lửa bắn liên tục,
+   bên tấn công dần lấn át và đẩy đối phương ngã nhào.
+5. **Đòn quyết định:** thời gian chậm lại; quân quý bị hạ sẽ khuỵu xuống, mắt tắt dần rồi mới đổ.
+6. Chạy nhanh hơn bằng nút tốc độ 2x / 3x.
+
+Vua bị chiếu hết thì khuỵu xuống rồi ngã, quân bên thắng ăn mừng.
 
 ## Tính năng
 
